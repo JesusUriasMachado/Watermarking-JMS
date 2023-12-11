@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:jms="http://www.mulesoft.org/schema/mule/jms" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<jms:config name="JMS_Config" doc:name="JMS Config" doc:id="48330c92-3546-4826-ae50-e9430cc02612" >
+		<jms:active-mq-connection >
+			<jms:factory-configuration />
+		</jms:active-mq-connection>
+	</jms:config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="fc97d8d2-9e57-4f81-a3a7-c16803428bb1" >
+		<db:my-sql-connection host="${secure::db.host}" port="${secure::db.port}" user="${secure::db.user}" database="${secure::db.db}" />
+	</db:config>
+	<flow name="watermarking-jms" doc:id="a1616193-81fa-43e2-abe7-7cba84b4d2ac" >
+		<scheduler doc:name="Scheduler" doc:id="c2e8bdb1-ce00-42f6-b91e-7576358c6de4" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="10" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<os:retrieve doc:name="Retrieve lastAccounId" doc:id="0f39f8bf-0c4c-4474-b2ec-41613d061bb0" key="lastAccountId" target="lastAccountId">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<db:select doc:name="Select New Records" doc:id="c81c8dc1-c319-4103-9d56-d4fffeea80d0" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT
+	*
+FROM users
+WHERE id > :lastAccountId]]></db:sql>
+			<db:input-parameters ><![CDATA[#[%dw 2.0
+output application/java
+---
+{
+	lastAccountId : vars.lastAccountId
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="3e7bfe85-d255-415c-8eb5-fffb38154443" >
+			<when expression="#[not isEmpty(payload)]">
+				<os:store doc:name="Store lastAccountId" doc:id="5fe1105d-d335-47cb-bbcf-ddc77c0d137e" key="lastAccountId">
+					<os:value ><![CDATA[#[max(payload.*id)]]]></os:value>
+				</os:store>
+				<file:write doc:name="Write Backup" doc:id="39677c9d-8d9d-4d94-9874-3da150b2d085" path="C:\Users\JESUS URIAS MACHADO\Documents\backup\data.csv.backup" mode="APPEND">
+					<file:content ><![CDATA[#[%dw 2.0
+output application/csv header=false
+---
+payload]]]></file:content>
+				</file:write>
+				<logger level="INFO" doc:name="New Records" doc:id="2ef46540-d035-45ee-8aa3-74fa248f0726" message="SI HAY"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="No New Records" doc:id="c7ec8924-5612-49a9-b924-9630e8e40bdf" message="NO NEW RECORDS"/>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
