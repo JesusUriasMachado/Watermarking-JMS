@@ -47,11 +47,27 @@ output application/csv header=false
 ---
 payload]]]></file:content>
 				</file:write>
+				<jms:publish doc:name="Publish accountsQ" doc:id="6904e1ea-5ec5-494f-8190-4106b9789ff9" config-ref="JMS_Config" destination="accountsQ">
+					<jms:message >
+						<jms:body ><![CDATA[#[output application/json
+---
+payload]]]></jms:body>
+						<jms:properties ><![CDATA[#[{'publisher':'Urias'}]]]></jms:properties>
+					</jms:message>
+				</jms:publish>
 				<logger level="INFO" doc:name="New Records" doc:id="2ef46540-d035-45ee-8aa3-74fa248f0726" message="SI HAY"/>
 			</when>
 			<otherwise >
 				<logger level="INFO" doc:name="No New Records" doc:id="c7ec8924-5612-49a9-b924-9630e8e40bdf" message="NO NEW RECORDS"/>
 			</otherwise>
 		</choice>
+	</flow>
+	<flow name="receiveJMSMessages" doc:id="9d1a4017-0c21-4293-941c-e61456e48956" >
+		<jms:listener doc:name="JMS accountsQ" doc:id="4dba4fe5-9ff1-4710-a3dc-d4c1bc8e3183" config-ref="JMS_Config" destination="accountsQ">
+			<jms:consumer-type >
+				<jms:queue-consumer />
+			</jms:consumer-type>
+		</jms:listener>
+		<logger level="INFO" doc:name="Payload" doc:id="51a61c2a-def9-467a-9784-82cb92b72fb3" message="#[payload]"/>
 	</flow>
 </mule>
